@@ -34,6 +34,20 @@ const entryTemplate = (guest: Guest) => {
 `;
 };
 
+async function getOldGuests(octokit: Octokit) {
+  const res = await octokit.repos.getReadme({
+    ...REPO_DETAILS,
+    path: "messages.json",
+  });
+  const encoded = res.data.content;
+  const decoded = Buffer.from(encoded, "base64").toString("utf8");
+  return {
+    content: decoded,
+    data: decoded ? JSON.parse(decoded) : [],
+    sha: res.data.sha,
+  };
+}
+
 async function getReadme(octokit: Octokit) {
   const res = await octokit.repos.getReadme(REPO_DETAILS);
   const encoded = res.data.content;
@@ -71,6 +85,7 @@ function renderList(guests: Guest[]): string {
 export default async (req: NowRequest, res: NowResponse) => {
   const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
   const readme = await getReadme(octokit);
+  const oldGuests = await getOldGuests(octokit);
 
   const match = readme.content.match(jsonReg);
   if (!match) return res.send(200).end();
@@ -87,6 +102,15 @@ export default async (req: NowRequest, res: NowResponse) => {
 
   try {
     const newContents = generateNewReadme(newList, readme.content);
+
+    await octokit.repos.createOrUpdateFile({
+      ...REPO_DETAILS,
+      content: JSON.stringify([newGuest, ...oldGuests.data]),
+      path: "messages.json",
+      message: `appending message from ${newGuest.name}`,
+      sha: oldGuests.sha,
+      branch: "master",
+    });
 
     await octokit.repos.createOrUpdateFile({
       ...REPO_DETAILS,
