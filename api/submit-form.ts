@@ -80,7 +80,7 @@ export default async (req: NowRequest, res: NowResponse) => {
   const newGuest: Guest = {
     name: req.body.name,
     message: sanitizeHTML(req.body.message.slice(0, MAX_LENGTH)),
-    date: format(new Date(), "dd MMM yyyy, h:mmb..bbb (O...OOO)"),
+    date: format(new Date(), "dd MMM yyyy, h:mm b (O)"),
   };
 
   const newList = createNewList(newGuest, guests);
